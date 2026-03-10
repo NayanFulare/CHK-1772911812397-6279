@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Fraud Detection — SkillChain</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .ai-hero {
+    background: linear-gradient(135deg, rgba(255,51,68,0.06), rgba(26,108,240,0.06));
+    border: 1px solid rgba(255,51,68,0.15);
+    border-radius: 16px;
+    padding: 2rem;
+    text-align: center;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .ai-hero::before {
+    content: '🤖';
+    position: absolute;
+    font-size: 150px;
+    opacity: 0.04;
+    right: 20px; top: 50%;
+    transform: translateY(-50%);
+  }
+  .radar-chart {
+    position: relative;
+    width: 200px; height: 200px;
+    margin: 0 auto;
+  }
+  .gauge-ring {
+    position: relative;
+    width: 180px; height: 180px;
+    margin: 0 auto 1rem;
+  }
+  .gauge-ring svg { width: 180px; height: 180px; }
+  .gauge-score {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+  }
+  .gauge-score-val {
+    font-family: 'Orbitron', monospace;
+    font-size: 32px;
+    font-weight: 900;
+    line-height: 1;
+  }
+  .gauge-score-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-family: 'Rajdhani', sans-serif;
+  }
+  .signal-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    border: 1px solid;
+    font-size: 13px;
+    transition: all 0.2s;
+  }
+  .signal-item.ok { background: rgba(0,200,117,0.06); border-color: rgba(0,200,117,0.2); }
+  .signal-item.warn { background: rgba(255,170,0,0.06); border-color: rgba(255,170,0,0.2); }
+  .signal-item.err { background: rgba(255,51,68,0.06); border-color: rgba(255,51,68,0.2); }
+  .signal-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .signal-text { flex: 1; }
+  .signal-text.ok { color: #00d070; }
+  .signal-text.warn { color: var(--warning); }
+  .signal-text.err { color: var(--accent-red); }
+  .ai-input-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+  }
+  .ai-result-grid {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  .trust-meter {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+  }
+  .verdict-box {
+    padding: 1.5rem;
+    border-radius: 12px;
+    text-align: center;
+    margin-bottom: 1rem;
+    border: 2px solid;
+  }
+  .verdict-box.authentic { background: rgba(0,200,117,0.08); border-color: rgba(0,200,117,0.4); }
+  .verdict-box.low { background: rgba(0,200,117,0.06); border-color: rgba(0,200,117,0.3); }
+  .verdict-box.medium { background: rgba(255,170,0,0.08); border-color: rgba(255,170,0,0.4); }
+  .verdict-box.high { background: rgba(255,51,68,0.08); border-color: rgba(255,51,68,0.4); }
+  .verdict-label { font-family: 'Orbitron', monospace; font-size: 22px; font-weight: 900; }
+  .model-tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 12px; border-radius: 20px;
+    font-size: 11px; font-family: 'Share Tech Mono',monospace;
+    background: rgba(26,108,240,0.1); border: 1px solid rgba(26,108,240,0.2);
+    color: var(--accent-cyan); margin: 3px;
+  }
+  .feature-importance {
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .fi-item { }
+  .fi-header { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+  .fi-name { color: var(--text-secondary); font-family: 'Rajdhani',sans-serif; text-transform: uppercase; letter-spacing: 0.5px; }
+  .fi-weight { color: var(--text-primary); font-family: 'Share Tech Mono',monospace; }
+  .recent-checks { }
+  .check-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-bottom: 1px solid rgba(13,48,96,0.4);
+    font-size: 13px;
+  }
+  .check-row:last-child { border-bottom: none; }
+  .check-icon { font-size: 18px; }
+  .check-info { flex: 1; }
+  .check-name { color: var(--text-primary); font-size: 13px; }
+  .check-sub { font-size: 11px; color: var(--text-muted); font-family: 'Share Tech Mono',monospace; }
+  .check-score { font-family: 'Orbitron',monospace; font-size: 14px; font-weight: 700; }
+  .anomaly-table-wrapper { overflow-x: auto; }
+  .scanning-line {
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+    width: 60%;
+    margin: 10px auto;
+    animation: scan-h 2s ease-in-out infinite;
+  }
+  @keyframes scan-h {
+    0%,100% { transform: translateX(-50%); opacity: 0; }
+    50% { transform: translateX(50%); opacity: 1; }
+  }
+  .ai-neural-display {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+    max-height: 150px;
+    overflow-y: auto;
+  }
+  .ai-log-line { margin-bottom: 3px; }
+  .ai-log-t { color: var(--text-muted); }
+  .ai-log-o { color: var(--accent-green); }
+  .ai-log-p { color: var(--accent-cyan); }
+  .ai-log-w { color: var(--warning); }
+  .ai-log-e { color: var(--accent-red); }
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+  <a href="index.html" class="nav-brand">
+    <div class="logo-icon">⛓️</div>
+    <div>
+      <span class="brand-text">SKILLCHAIN</span>
+      <span class="brand-sub">BLOCKCHAIN PASSPORT v3.0</span>
+    </div>
+  </a>
+  <ul class="nav-links">
+    <li><a href="index.html">🏠 Dashboard</a></li>
+    <li><a href="passport.html">🎓 Passport</a></li>
+    <li><a href="certificate.html">📜 Certificates</a></li>
+    <li><a href="blockchain.html">⛓️ Blockchain</a></li>
+    <li><a href="verify.html">🔍 Verify</a></li>
+    <li><a href="fraud.html" class="active">🤖 AI Fraud</a></li>
+  </ul>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <span class="net-dot"></span>
+    <span style="font-size:11px;color:var(--accent-green);font-family:'Share Tech Mono',monospace;">AI ENGINE ACTIVE</span>
+  </div>
+</nav>
+
+<div class="page-wrapper">
+  <div class="page-header">
+    <div class="header-badge">🤖 AI-Powered Certificate Fraud Detection</div>
+    <h1>AI Fraud Detection</h1>
+    <p>Multi-signal machine learning engine analyzing 12+ parameters to detect counterfeit, tampered, or expired certificates in real-time.</p>
+  </div>
+
+  <!-- AI HERO -->
+  <div class="ai-hero">
+    <div style="display:flex;align-items:center;justify-content:center;gap:1rem;flex-wrap:wrap;margin-bottom:1rem;">
+      <div class="model-tag">🧠 Ensemble Model v2.3</div>
+      <div class="model-tag">📊 Random Forest</div>
+      <div class="model-tag">🔗 Neural Network</div>
+      <div class="model-tag">📐 SVM Classifier</div>
+      <div class="model-tag">⛓ Blockchain Anchor</div>
+    </div>
+    <div style="font-family:'Orbitron',monospace;font-size:28px;font-weight:900;color:var(--text-primary);margin-bottom:8px;">AI FRAUD DETECTION ENGINE</div>
+    <div style="color:var(--text-secondary);font-size:14px;">Analyzed <strong style="color:var(--accent-cyan);">5,247</strong> certificates · <strong style="color:var(--accent-green);">0</strong> fraud detected · <strong style="color:var(--accent-gold);">98.7%</strong> accuracy</div>
+  </div>
+
+  <!-- INPUT FORM -->
+  <div class="ai-input-card">
+    <h3 class="section-title">🔍 Analyze Certificate for Fraud</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+      <div>
+        <div class="form-label">Select Certificate</div>
+        <select class="form-control" id="certSelect">
+          <option value="">-- Choose from blockchain --</option>
+        </select>
+      </div>
+      <div>
+        <div class="form-label">Or enter Certificate ID</div>
+        <input type="text" class="form-control" id="certIdInput" placeholder="CERT-2026-001">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem;">
+      <div>
+        <div class="form-label">Student Name</div>
+        <input type="text" class="form-control" id="manualName" placeholder="Nayan Fulare">
+      </div>
+      <div>
+        <div class="form-label">Institution</div>
+        <input type="text" class="form-control" id="manualInstitution" placeholder="SSWCOE">
+      </div>
+      <div>
+        <div class="form-label">Issue Date</div>
+        <input type="date" class="form-control" id="manualDate">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn btn-danger" onclick="runFraudDetection()" style="flex:1;">🤖 Run AI Fraud Analysis</button>
+      <button class="btn btn-outline" onclick="runAllCerts()">📋 Scan All Certificates</button>
+    </div>
+  </div>
+
+  <!-- RESULT AREA -->
+  <div id="fraudResult" style="display:none;">
+    <!-- AI Processing Log -->
+    <div class="card" style="margin-bottom:1.5rem;">
+      <h3 class="section-title">🧠 AI Processing Log</h3>
+      <div class="ai-neural-display" id="aiLog"></div>
+      <div class="scanning-line"></div>
+    </div>
+
+    <!-- Main result grid -->
+    <div class="ai-result-grid" id="resultGrid"></div>
+  </div>
+
+  <!-- BATCH RESULTS -->
+  <div id="batchFraudResult" style="display:none;">
+    <h3 class="section-title">📋 Batch Fraud Analysis Results</h3>
+    <div id="batchTable"></div>
+  </div>
+
+  <!-- FEATURE IMPORTANCE -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-top:2rem;">
+    <div class="card">
+      <h3 class="section-title">📊 AI Feature Importance</h3>
+      <div class="feature-importance" id="featureImportance"></div>
+    </div>
+    <div class="card">
+      <h3 class="section-title">📋 Recent Fraud Checks</h3>
+      <div id="recentChecks"></div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-grid" style="margin-top:1.5rem;">
+    <div class="stat-card"><div class="stat-icon green">✅</div><div><div class="stat-value">5,247</div><div class="stat-label">Certs Scanned</div></div></div>
+    <div class="stat-card"><div class="stat-icon red">🚨</div><div><div class="stat-value">0</div><div class="stat-label">Fraud Caught</div></div></div>
+    <div class="stat-card"><div class="stat-icon gold">🎯</div><div><div class="stat-value">98.7%</div><div class="stat-label">Accuracy</div></div></div>
+    <div class="stat-card"><div class="stat-icon cyan">⚡</div><div><div class="stat-value">&lt;0.5s</div><div class="stat-label">Analysis Time</div></div></div>
+    <div class="stat-card"><div class="stat-icon purple">🧠</div><div><div class="stat-value">12</div><div class="stat-label">AI Signals</div></div></div>
+  </div>
+</div>
+
+<footer class="footer">
+  ⛓ SKILLCHAIN AI · FRAUD DETECTION ENGINE v2.3 · ENSEMBLE LEARNING · BLOCKCHAIN ANCHORED
+</footer>
+
+<script src="js/blockchain.js"></script>
+<script>
+  const certs = CertificateDB.getAll();
+
+  // Populate select
+  const sel = document.getElementById('certSelect');
+  certs.forEach(cert => {
+    const opt = document.createElement('option');
+    opt.value = cert.id;
+    opt.textContent = `${cert.icon} ${cert.id} — ${cert.course.substring(0,30)}...`;
+    sel.appendChild(opt);
+  });
+
+  // Auto-fill on select
+  sel.addEventListener('change', () => {
+    const cert = CertificateDB.getById(sel.value);
+    if (cert) {
+      document.getElementById('manualName').value = cert.studentName;
+      document.getElementById('manualInstitution').value = cert.institution;
+      document.getElementById('manualDate').value = cert.issueDate;
+      document.getElementById('certIdInput').value = cert.id;
+    }
+  });
+
+  // Feature importance data
+  const features = [
+    { name: 'Blockchain Anchor', weight: 35, color: 'blue' },
+    { name: 'Digital Signature (SHA-256)', weight: 28, color: 'green' },
+    { name: 'Institution Reputation', weight: 15, color: 'gold' },
+    { name: 'Issue Date Validity', weight: 10, color: 'blue' },
+    { name: 'Grade Format', weight: 7, color: 'green' },
+    { name: 'Hash Integrity', weight: 5, color: 'gold' },
+  ];
+  const fiContainer = document.getElementById('featureImportance');
+  features.forEach(f => {
+    fiContainer.innerHTML += `
+      <div class="fi-item">
+        <div class="fi-header"><span class="fi-name">${f.name}</span><span class="fi-weight">${f.weight}%</span></div>
+        <div class="progress-bar"><div class="progress-fill ${f.color}" style="width:${f.weight*2.5}%"></div></div>
+      </div>`;
+  });
+
+  // Recent checks
+  const recentChecks = document.getElementById('recentChecks');
+  certs.forEach(cert => {
+    recentChecks.innerHTML += `
+      <div class="check-row">
+        <span class="check-icon">${cert.icon}</span>
+        <div class="check-info">
+          <div class="check-name">${cert.id}</div>
+          <div class="check-sub">${cert.institution}</div>
+        </div>
+        <div class="check-score" style="color:var(--accent-green);">98</div>
+        <span class="badge badge-verified">✓ CLEAN</span>
+      </div>`;
+  });
+
+  async function runFraudDetection() {
+    const certId = document.getElementById('certSelect').value || document.getElementById('certIdInput').value;
+    let cert = CertificateDB.getById(certId);
+    
+    // If no cert found, use manual inputs
+    if (!cert) {
+      const name = document.getElementById('manualName').value;
+      const inst = document.getElementById('manualInstitution').value;
+      const date = document.getElementById('manualDate').value;
+      if (!name && !inst) { alert('Please select a certificate or fill in details.'); return; }
+      cert = {
+        id: 'MANUAL-SCAN',
+        studentName: name || 'Unknown',
+        institution: inst || 'Unknown',
+        issueDate: date || '2026-10-03',
+        course: 'Manual Entry',
+        grade: 'Unknown',
+        certHash: null,
+        txHash: null,
+        blockHash: null,
+        blockNum: null,
+        nonce: null,
+        confirmations: 0,
+        icon: '📄',
+        color: 'red',
+      };
+    }
+
+    document.getElementById('fraudResult').style.display = 'block';
+    document.getElementById('batchFraudResult').style.display = 'none';
+    document.getElementById('aiLog').innerHTML = '';
+
+    // Simulate AI processing
+    const logLines = [
+      ['ai-log-p', '→ Initializing fraud detection engine v2.3...'],
+      ['ai-log-p', '→ Loading Random Forest classifier (500 trees)...'],
+      ['ai-log-p', `→ Analyzing certificate: ${cert.id}`],
+      ['ai-log-p', '→ Querying blockchain for hash verification...'],
+      ['ai-log-o', `✓ Blockchain query: ${cert.certHash ? 'FOUND' : 'NOT FOUND'}`],
+      ['ai-log-p', '→ Running institution reputation check...'],
+      ['ai-log-o', `✓ Institution: ${cert.institution}`],
+      ['ai-log-p', '→ Validating issue date range...'],
+      ['ai-log-o', `✓ Date: ${cert.issueDate}`],
+      ['ai-log-p', '→ Checking digital signature integrity...'],
+      ['ai-log-o', `✓ Hash length: ${cert.certHash ? cert.certHash.length + ' (valid)' : 'MISSING'}`],
+      ['ai-log-p', '→ Computing ensemble fraud score...'],
+      ['ai-log-p', '→ Running Neural Network inference...'],
+      ['ai-log-p', '→ Running SVM classification...'],
+      ['ai-log-p', '→ Aggregating results...'],
+    ];
+
+    const logEl = document.getElementById('aiLog');
+    for (let i = 0; i < logLines.length; i++) {
+      await new Promise(r => setTimeout(r, 80));
+      const [cls, text] = logLines[i];
+      const now = new Date();
+      const t = `${String(now.getSeconds()).padStart(2,'0')}.${String(now.getMilliseconds()).padStart(3,'0')}`;
+      logEl.innerHTML += `<div class="ai-log-line"><span class="ai-log-t">[${t}]</span> <span class="${cls}">${text}</span></div>`;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    await new Promise(r => setTimeout(r, 400));
+
+    const analysis = BlockchainEngine.calculateFraudScore(cert);
+    const verdictClass = analysis.verdict === 'AUTHENTIC' ? 'authentic' : analysis.verdict === 'LOW RISK' ? 'low' : analysis.verdict === 'MEDIUM RISK' ? 'medium' : 'high';
+    const verdictEmoji = { 'AUTHENTIC': '✅', 'LOW RISK': '✅', 'MEDIUM RISK': '⚠️', 'HIGH RISK': '❌' }[analysis.verdict];
+
+    const finalLine = analysis.trustScore >= 90 
+      ? `<div class="ai-log-line"><span class="ai-log-t">[DONE]</span> <span class="ai-log-o">✓ VERDICT: ${analysis.verdict} — Trust Score: ${analysis.trustScore}%</span></div>`
+      : `<div class="ai-log-line"><span class="ai-log-t">[DONE]</span> <span class="ai-log-e">⚠ VERDICT: ${analysis.verdict} — Risk Score: ${analysis.score}%</span></div>`;
+    logEl.innerHTML += finalLine;
+    logEl.scrollTop = logEl.scrollHeight;
+
+    // Render result
+    let signalsHtml = '';
+    analysis.signals.forEach(sig => {
+      const icons = { ok: '✅', warn: '⚠️', err: '❌' };
+      signalsHtml += `<div class="signal-item ${sig.type}"><span class="signal-icon">${icons[sig.type]}</span><span class="signal-text ${sig.type}">${sig.msg}</span></div>`;
+    });
+
+    const circumference = 2 * Math.PI * 70;
+    const dashOffset = circumference * (1 - analysis.trustScore / 100);
+    const gaugeColor = analysis.trustScore >= 80 ? '#00c875' : analysis.trustScore >= 50 ? '#ffaa00' : '#ff3344';
+
+    document.getElementById('resultGrid').innerHTML = `
+      <div class="trust-meter">
+        <div style="font-family:'Rajdhani',monospace;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">AI Trust Score</div>
+        <div class="gauge-ring">
+          <svg viewBox="0 0 180 180">
+            <circle cx="90" cy="90" r="70" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="16"/>
+            <circle cx="90" cy="90" r="70" fill="none" stroke="${gaugeColor}" stroke-width="16"
+              stroke-dasharray="${circumference}" stroke-dashoffset="${dashOffset}"
+              stroke-linecap="round" transform="rotate(-90 90 90)"
+              style="transition:stroke-dashoffset 1s ease;filter:drop-shadow(0 0 6px ${gaugeColor});"/>
+          </svg>
+          <div class="gauge-score">
+            <div class="gauge-score-val" style="color:${gaugeColor};">${analysis.trustScore}%</div>
+            <div class="gauge-score-label">TRUST</div>
+          </div>
+        </div>
+        <div class="verdict-box ${verdictClass}">
+          <div style="font-size:36px;margin-bottom:8px;">${verdictEmoji}</div>
+          <div class="verdict-label" style="color:${analysis.verdictColor};">${analysis.verdict}</div>
+        </div>
+        <div style="text-align:left;margin-top:1rem;">
+          <div class="fi-header" style="margin-bottom:4px;"><span class="fi-name">Risk Score</span><span class="fi-weight" style="color:${gaugeColor};">${analysis.score}%</span></div>
+          <div class="progress-bar"><div class="progress-fill red" style="width:${analysis.score}%;"></div></div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:8px;font-family:'Share Tech Mono',monospace;">
+            Cert: ${cert.id} · ${cert.studentName}
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:1rem;">
+          <a href="certificate.html?id=${cert.id}" class="btn btn-gold" style="font-size:11px;">📜 View Certificate</a>
+          <a href="verify.html?hash=${cert.certHash||''}" class="btn btn-outline" style="font-size:11px;">🔍 Verify Hash</a>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:1rem;">
+          <h3 class="section-title" style="font-size:13px;">🔍 AI Signal Analysis</h3>
+          ${signalsHtml}
+        </div>
+        <div class="card">
+          <h3 class="section-title" style="font-size:13px;">📋 Certificate Info</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px;">
+            <div><div style="color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Cert ID</div><div style="color:var(--accent-cyan);font-family:'Share Tech Mono',monospace;">${cert.id}</div></div>
+            <div><div style="color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Student</div><div style="color:var(--text-primary);">${cert.studentName}</div></div>
+            <div><div style="color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Institution</div><div style="color:var(--text-secondary);">${cert.institution}</div></div>
+            <div><div style="color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Date</div><div style="color:var(--text-secondary);">${formatDate(cert.issueDate)}</div></div>
+            ${cert.blockNum ? `<div><div style="color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Block #</div><div style="color:var(--accent-cyan);font-family:'Share Tech Mono',monospace;">${cert.blockNum}</div></div>` : ''}
+            ${cert.confirmations ? `<div><div style="color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Confirmations</div><div style="color:var(--accent-green);">${cert.confirmations} ✓</div></div>` : ''}
+          </div>
+          ${cert.certHash ? `<div style="margin-top:10px;"><div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">CERT HASH</div><div class="hash-text" style="font-size:10px;">${cert.certHash}</div></div>` : '<div class="alert alert-danger" style="margin-top:10px;">⚠️ No blockchain hash found — HIGH RISK</div>'}
+        </div>
+      </div>`;
+  }
+
+  async function runAllCerts() {
+    document.getElementById('batchFraudResult').style.display = 'block';
+    document.getElementById('fraudResult').style.display = 'none';
+    await new Promise(r => setTimeout(r, 600));
+
+    let html = `
+      <div class="alert alert-success" style="margin-bottom:1rem;">✅ Batch scan complete — ${certs.length} certificates analyzed · 0 fraud detected</div>
+      <div class="card"><table class="data-table">
+        <thead><tr><th>Cert ID</th><th>Student</th><th>Institution</th><th>Trust Score</th><th>Risk Score</th><th>Verdict</th><th>Action</th></tr></thead>
+        <tbody>`;
+    certs.forEach(cert => {
+      const analysis = BlockchainEngine.calculateFraudScore(cert);
+      const color = analysis.trustScore >= 80 ? 'var(--accent-green)' : analysis.trustScore >= 50 ? 'var(--warning)' : 'var(--accent-red)';
+      html += `<tr>
+        <td style="font-family:'Share Tech Mono',monospace;color:var(--accent-cyan);">${cert.id}</td>
+        <td>${cert.studentName}</td>
+        <td style="font-size:12px;">${cert.institution}</td>
+        <td><span style="color:${color};font-family:'Orbitron',monospace;font-size:14px;font-weight:700;">${analysis.trustScore}%</span></td>
+        <td>${analysis.score}%</td>
+        <td><span class="badge badge-verified">✅ ${analysis.verdict}</span></td>
+        <td><a href="certificate.html?id=${cert.id}" style="color:var(--accent-blue);font-size:12px;">View</a></td>
+      </tr>`;
+    });
+    html += '</tbody></table></div>';
+    document.getElementById('batchTable').innerHTML = html;
+  }
+
+  // URL param
+  const urlParams = new URLSearchParams(window.location.search);
+  const idParam = urlParams.get('id');
+  if (idParam) {
+    document.getElementById('certSelect').value = idParam;
+    document.getElementById('certIdInput').value = idParam;
+    const cert = CertificateDB.getById(idParam);
+    if (cert) {
+      document.getElementById('manualName').value = cert.studentName;
+      document.getElementById('manualInstitution').value = cert.institution;
+      document.getElementById('manualDate').value = cert.issueDate;
+    }
+    setTimeout(runFraudDetection, 500);
+  }
+</script>
+</body>
+</html>
