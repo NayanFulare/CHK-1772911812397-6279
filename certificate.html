@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Certificate — SkillChain</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  .cert-selector {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+  }
+  .cert-selector-btn {
+    padding: 8px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .cert-selector-btn:hover, .cert-selector-btn.active {
+    border-color: var(--accent-gold);
+    color: var(--accent-gold);
+    background: rgba(212,160,23,0.08);
+  }
+  .cert-display-area {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 1.5rem;
+    align-items: start;
+  }
+  /* Certificate Document Styles */
+  .cert-document {
+    background: linear-gradient(160deg, #0d1f3c 0%, #102040 30%, #0a1628 100%);
+    border: 3px solid var(--accent-gold);
+    border-radius: 20px;
+    padding: 3rem;
+    position: relative;
+    overflow: hidden;
+    min-height: 500px;
+  }
+  .cert-document::before {
+    content: '';
+    position: absolute;
+    inset: 12px;
+    border: 1px solid rgba(212,160,23,0.15);
+    border-radius: 12px;
+    pointer-events: none;
+  }
+  .cert-corner {
+    position: absolute;
+    width: 40px; height: 40px;
+    border-color: var(--accent-gold);
+    border-style: solid;
+    opacity: 0.5;
+  }
+  .cert-corner.tl { top: 20px; left: 20px; border-width: 2px 0 0 2px; border-radius: 4px 0 0 0; }
+  .cert-corner.tr { top: 20px; right: 20px; border-width: 2px 2px 0 0; border-radius: 0 4px 0 0; }
+  .cert-corner.bl { bottom: 20px; left: 20px; border-width: 0 0 2px 2px; border-radius: 0 0 0 4px; }
+  .cert-corner.br { bottom: 20px; right: 20px; border-width: 0 2px 2px 0; border-radius: 0 0 4px 0; }
+  .cert-bg-pattern {
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle at 20% 80%, rgba(212,160,23,0.04) 0%, transparent 50%),
+                      radial-gradient(circle at 80% 20%, rgba(26,108,240,0.04) 0%, transparent 50%);
+    pointer-events: none;
+  }
+  .cert-watermark-text {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) rotate(-30deg);
+    font-family: 'Orbitron', monospace;
+    font-size: 70px;
+    font-weight: 900;
+    color: rgba(212,160,23,0.04);
+    pointer-events: none;
+    white-space: nowrap;
+    user-select: none;
+  }
+  .cert-institution-logo {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    border: 2px solid var(--accent-gold);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 36px;
+    box-shadow: 0 0 30px rgba(212,160,23,0.3);
+    background: linear-gradient(135deg, rgba(212,160,23,0.1), rgba(26,108,240,0.1));
+  }
+  .cert-doc-header {
+    text-align: center;
+    position: relative;
+    z-index: 1;
+    margin-bottom: 2rem;
+  }
+  .cert-doc-org-name {
+    font-family: 'Orbitron', monospace;
+    font-size: 12px;
+    letter-spacing: 4px;
+    color: var(--accent-gold);
+    text-transform: uppercase;
+    margin: 10px 0 4px;
+  }
+  .cert-doc-org-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .cert-doc-divider {
+    border: none;
+    border-top: 1px solid rgba(212,160,23,0.2);
+    margin: 1.5rem 0;
+  }
+  .cert-doc-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .cert-doc-presented {
+    font-family: 'Orbitron', monospace;
+    font-size: 40px;
+    font-weight: 900;
+    text-align: center;
+    color: var(--text-primary);
+    text-shadow: 0 0 30px rgba(255,255,255,0.1);
+    margin-bottom: 8px;
+    position: relative; z-index: 1;
+  }
+  .cert-doc-course {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 20px;
+    color: var(--accent-cyan);
+    text-align: center;
+    font-weight: 600;
+    margin-bottom: 4px;
+    position: relative; z-index: 1;
+  }
+  .cert-doc-institution {
+    font-size: 14px;
+    color: var(--text-secondary);
+    text-align: center;
+    margin-bottom: 2rem;
+    position: relative; z-index: 1;
+  }
+  .cert-doc-footer {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1rem;
+    align-items: end;
+    position: relative; z-index: 1;
+    margin-top: 1rem;
+  }
+  .cert-doc-sign { text-align: center; }
+  .cert-doc-sign-name {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+  .cert-doc-sign-title {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-top: 1px solid var(--text-muted);
+    padding-top: 6px;
+  }
+  .cert-doc-seal { text-align: center; }
+  .cert-doc-seal-circle {
+    width: 70px; height: 70px;
+    border-radius: 50%;
+    border: 2px solid var(--accent-gold);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    margin: 0 auto;
+    background: rgba(212,160,23,0.05);
+    box-shadow: 0 0 15px rgba(212,160,23,0.2);
+  }
+  .cert-doc-seal-icon { font-size: 22px; }
+  .cert-doc-seal-text { font-size: 8px; color: var(--accent-gold); font-weight: 700; letter-spacing: 1px; }
+  .cert-doc-badge-area {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 1rem 0;
+    position: relative; z-index: 1;
+  }
+  .cert-chain-info {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(212,160,23,0.15);
+    border-radius: 8px;
+    padding: 12px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 1.5rem;
+    position: relative; z-index: 1;
+  }
+  .cert-chain-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .cert-chain-key { color: var(--text-muted); }
+  .cert-chain-val { color: var(--accent-cyan); }
+  /* Sidebar */
+  .cert-sidebar { display: flex; flex-direction: column; gap: 1rem; }
+  .qr-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.25rem;
+    text-align: center;
+  }
+  .qr-card-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+  }
+  .qr-wrapper {
+    background: white;
+    border-radius: 10px;
+    padding: 12px;
+    display: inline-block;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+  .blockchain-info-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.25rem;
+  }
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(13,48,96,0.4);
+    gap: 8px;
+  }
+  .info-row:last-child { border-bottom: none; }
+  .info-key { font-size: 11px; color: var(--text-muted); font-family: 'Rajdhani',sans-serif; text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0; }
+  .info-val { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--text-secondary); text-align: right; word-break: break-all; }
+  .info-val.good { color: var(--accent-green); }
+  .info-val.blue { color: var(--accent-cyan); }
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+  <a href="index.html" class="nav-brand">
+    <div class="logo-icon">⛓️</div>
+    <div>
+      <span class="brand-text">SKILLCHAIN</span>
+      <span class="brand-sub">BLOCKCHAIN PASSPORT v3.0</span>
+    </div>
+  </a>
+  <ul class="nav-links">
+    <li><a href="index.html">🏠 Dashboard</a></li>
+    <li><a href="passport.html">🎓 Passport</a></li>
+    <li><a href="certificate.html" class="active">📜 Certificates</a></li>
+    <li><a href="blockchain.html">⛓️ Blockchain</a></li>
+    <li><a href="verify.html">🔍 Verify</a></li>
+    <li><a href="fraud.html">🤖 AI Fraud</a></li>
+  </ul>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <span class="net-dot"></span>
+    <span style="font-size:11px;color:var(--accent-green);font-family:'Share Tech Mono',monospace;">MAINNET LIVE</span>
+  </div>
+</nav>
+
+<div class="page-wrapper">
+  <div class="page-header">
+    <div class="header-badge">📜 QR-Enabled Blockchain Certificates</div>
+    <h1>Certificate Viewer</h1>
+    <p>Official certificates anchored to the blockchain with QR code verification and SHA-256 hash protection.</p>
+  </div>
+
+  <!-- CERT SELECTOR -->
+  <h3 class="section-title">Select Certificate</h3>
+  <div class="cert-selector" id="certSelector"></div>
+
+  <!-- CERT DISPLAY -->
+  <div class="cert-display-area" id="certDisplayArea">
+    <!-- Populated by JS -->
+  </div>
+
+  <!-- ACTIONS ROW -->
+  <div style="display:flex;gap:10px;margin-top:1.5rem;flex-wrap:wrap;" id="actionRow"></div>
+</div>
+
+<footer class="footer">
+  ⛓ SKILLCHAIN BLOCKCHAIN · SHA-256 SECURED · QR VERIFIED · IMMUTABLE LEDGER
+</footer>
+
+<script src="js/blockchain.js"></script>
+<script>
+  const certs = CertificateDB.getAll();
+  let activeCert = null;
+  let qrInstance = null;
+
+  // Build selector buttons
+  const selector = document.getElementById('certSelector');
+  certs.forEach((cert, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'cert-selector-btn' + (i === 0 ? ' active' : '');
+    btn.innerHTML = `${cert.icon} ${cert.id}`;
+    btn.onclick = () => loadCert(cert.id);
+    selector.appendChild(btn);
+  });
+
+  function loadCert(id) {
+    const cert = CertificateDB.getById(id);
+    if (!cert) return;
+    activeCert = cert;
+
+    // Update selector
+    document.querySelectorAll('.cert-selector-btn').forEach((btn, i) => {
+      btn.classList.toggle('active', certs[i].id === id);
+    });
+
+    const verifyUrl = `https://skillchain.gov.in/verify/${cert.certHash}`;
+
+    // Render certificate
+    document.getElementById('certDisplayArea').innerHTML = `
+      <div class="cert-document" id="certDoc">
+        <div class="cert-corner tl"></div>
+        <div class="cert-corner tr"></div>
+        <div class="cert-corner bl"></div>
+        <div class="cert-corner br"></div>
+        <div class="cert-bg-pattern"></div>
+        <div class="cert-watermark-text">VERIFIED</div>
+
+        <div class="cert-doc-header">
+          <div style="display:flex;justify-content:center;margin-bottom:10px;">
+            <div class="cert-institution-logo">${cert.icon}</div>
+          </div>
+          <div class="cert-doc-org-name">${cert.institution}</div>
+          <div class="cert-doc-org-sub">SkillChain Accredited Institution · India</div>
+        </div>
+
+        <hr class="cert-doc-divider">
+
+        <div class="cert-doc-title">Certificate of Completion</div>
+        <div style="font-size:12px;text-align:center;color:var(--text-muted);margin-bottom:1rem;letter-spacing:2px;">THIS IS TO CERTIFY THAT</div>
+        <div class="cert-doc-presented">${cert.studentName}</div>
+        <div style="text-align:center;color:var(--text-secondary);margin-bottom:8px;">having demonstrated exceptional proficiency, has successfully completed</div>
+        <div class="cert-doc-course">${cert.course}</div>
+        <div class="cert-doc-institution">Issued on ${formatDate(cert.issueDate)} · Credit Hours: ${cert.credits}</div>
+
+        <div class="cert-doc-badge-area">
+          <span class="badge badge-verified">✓ Blockchain Verified</span>
+          <span class="badge badge-blockchain">⛓ Block #${cert.blockNum}</span>
+          <span style="background:rgba(212,160,23,0.12);border:1px solid rgba(212,160,23,0.3);color:var(--accent-gold);padding:4px 10px;border-radius:20px;font-size:11px;font-family:'Share Tech Mono',monospace;">Grade: ${cert.grade}</span>
+        </div>
+
+        <hr class="cert-doc-divider">
+
+        <div class="cert-doc-footer">
+          <div class="cert-doc-sign">
+            <div class="cert-doc-sign-name">Dr.T.A.Chavan</div>
+            <div class="cert-doc-sign-title">Director General</div>
+          </div>
+          <div class="cert-doc-seal">
+            <div class="cert-doc-seal-circle">
+              <div class="cert-doc-seal-icon">🏛️</div>
+              <div class="cert-doc-seal-text">OFFICIAL</div>
+            </div>
+          </div>
+          <div class="cert-doc-sign">
+            <div class="cert-doc-sign-name">Prof. A. S. Mehta</div>
+            <div class="cert-doc-sign-title">Registrar</div>
+          </div>
+        </div>
+
+        <div class="cert-chain-info">
+          <div class="cert-chain-row"><span class="cert-chain-key">CERT HASH:</span><span class="cert-chain-val">${cert.certHash.substring(0,24)}...</span></div>
+          <div class="cert-chain-row"><span class="cert-chain-key">TX HASH:</span><span class="cert-chain-val">${cert.txHash.substring(0,24)}...</span></div>
+          <div class="cert-chain-row"><span class="cert-chain-key">BLOCK:</span><span class="cert-chain-val">#${cert.blockNum} · NONCE: ${cert.nonce} · NETWORK: ${cert.network}</span></div>
+        </div>
+      </div>
+
+      <div class="cert-sidebar">
+        <div class="qr-card">
+          <div class="qr-card-title">🔍 Scan to Verify</div>
+          <div class="qr-wrapper">
+            <div id="certQR"></div>
+          </div>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:10px;font-family:'Share Tech Mono';word-break:break-all;">${verifyUrl.substring(0,40)}...</div>
+          <div style="margin-top:10px;">
+            <span class="badge badge-verified">✓ QR Verified</span>
+          </div>
+        </div>
+
+        <div class="blockchain-info-card">
+          <h3 class="section-title" style="font-size:12px;">⛓ Blockchain Info</h3>
+          <div class="info-row">
+            <span class="info-key">Cert ID</span>
+            <span class="info-val blue">${cert.id}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">Block #</span>
+            <span class="info-val blue">${cert.blockNum}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">Nonce</span>
+            <span class="info-val blue">${cert.nonce}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">Confirmations</span>
+            <span class="info-val good">${cert.confirmations} ✓</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">Gas Used</span>
+            <span class="info-val">${cert.gasUsed}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">Network</span>
+            <span class="info-val">${cert.network}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">Status</span>
+            <span class="info-val good">CONFIRMED ✓</span>
+          </div>
+        </div>
+
+        <div class="blockchain-info-card">
+          <h3 class="section-title" style="font-size:12px;">🔐 Hash Details</h3>
+          <div style="margin-bottom:8px;">
+            <div class="info-key" style="margin-bottom:4px;">Cert Hash</div>
+            <div class="hash-text" style="font-size:10px;">${cert.certHash}</div>
+          </div>
+          <div>
+            <div class="info-key" style="margin-bottom:4px;">TX Hash</div>
+            <div class="hash-text" style="font-size:10px;">${cert.txHash}</div>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;">
+            <a href="verify.html?hash=${cert.certHash}" class="btn btn-outline" style="font-size:11px;padding:6px 12px;">🔍 Verify</a>
+            <a href="fraud.html?id=${cert.id}" class="btn btn-outline" style="font-size:11px;padding:6px 12px;">🤖 AI Check</a>
+          </div>
+        </div>
+
+        <div class="blockchain-info-card">
+          <h3 class="section-title" style="font-size:12px;">🏅 Verified Skills</h3>
+          <div>${cert.skills.map(s=>`<span class="skill-tag ${cert.color}" style="margin:2px;">${s}</span>`).join('')}</div>
+        </div>
+      </div>`;
+
+    // Generate QR code
+    new QRCode(document.getElementById('certQR'), {
+      text: verifyUrl,
+      width: 180, height: 180,
+      colorDark: '#020b18', colorLight: '#ffffff'
+    });
+
+    // Action row
+    document.getElementById('actionRow').innerHTML = `
+      <a href="verify.html?hash=${cert.certHash}" class="btn btn-primary">🔍 Verify on Blockchain</a>
+      <a href="blockchain.html?tx=${cert.txHash}" class="btn btn-outline">⛓ View Transaction</a>
+      <a href="fraud.html?id=${cert.id}" class="btn btn-outline">🤖 Run AI Fraud Check</a>
+      <button class="btn btn-gold" onclick="printCert()">🖨️ Print / Download PDF</button>`;
+  }
+
+  function printCert() {
+    window.print();
+  }
+
+  // Load first or URL param cert
+  const urlParams = new URLSearchParams(window.location.search);
+  const certId = urlParams.get('id') || certs[0].id;
+  loadCert(certId);
+</script>
+</body>
+</html>
