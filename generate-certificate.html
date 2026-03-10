@@ -1,0 +1,210 @@
+<script src="js/auth.js"></script>
+<script src="js/blockchain.js"></script>
+
+<script>
+
+// ================= PAGE LOAD =================
+document.addEventListener("DOMContentLoaded", () => {
+
+const session = AuthSystem.requireAuth("auth.html");
+
+// render login navigation
+if (AuthSystem.injectAuthNav) {
+  AuthSystem.injectAuthNav();
+}
+
+// set today's date
+const dateInput = document.getElementById("fDate");
+if(dateInput){
+  dateInput.valueAsDate = new Date();
+}
+
+// auto fill for student login
+if(session && session.role === "student"){
+
+const nameField = document.getElementById("fName");
+const idField = document.getElementById("fStudentId");
+
+if(nameField){
+nameField.value = session.name || "";
+nameField.readOnly = true;
+}
+
+if(idField){
+idField.value = session.studentId || "";
+idField.readOnly = true;
+}
+
+}
+
+// student quick fill buttons
+const students = [
+{ name:"Arjun Sharma", id:"STU-7841" },
+{ name:"Nayan Fulare", id:"STU-8102" },
+{ name:"Tejashri Hipparge", id:"STU-8203" },
+{ name:"Rohini Mungase", id:"STU-8307" },
+{ name:"Bhumika Dodave", id:"STU-8415" }
+];
+
+const quickArea = document.getElementById("studentQuickFill");
+
+if(quickArea){
+
+students.forEach(s=>{
+
+const btn = document.createElement("button");
+
+btn.className="btn btn-outline";
+btn.style="font-size:12px;padding:8px 14px;";
+btn.textContent="🎓 "+s.name;
+
+btn.onclick = () => {
+
+if(!session || session.role!=="admin") return;
+
+document.getElementById("fName").value=s.name;
+document.getElementById("fStudentId").value=s.id;
+
+};
+
+quickArea.appendChild(btn);
+
+});
+
+}
+
+});
+
+
+// ================= CERTIFICATE GENERATION =================
+let generatedCert=null;
+
+async function generateCertificate(){
+
+const name=document.getElementById("fName")?.value.trim();
+const studentId=document.getElementById("fStudentId")?.value.trim();
+const course=document.getElementById("fCourse")?.value.trim();
+const institution=document.getElementById("fInstitution")?.value.trim();
+const date=document.getElementById("fDate")?.value;
+const grade=document.getElementById("fGrade")?.value.trim();
+
+if(!name || !studentId || !course || !institution || !date || !grade){
+
+showBanner("errorBanner","❌ Please fill all required fields");
+return;
+
+}
+
+const btn=document.getElementById("generateBtn");
+if(btn) btn.disabled=true;
+
+document.getElementById("previewPlaceholder").style.display="none";
+document.getElementById("miningAnim").style.display="block";
+
+try{
+
+// generate blockchain hash
+const certHash = await BlockchainEngine.sha256(
+name + studentId + course + Date.now()
+);
+
+const blockNum=Math.floor(Math.random()*10000);
+
+// transaction hash
+const txHash = await BlockchainEngine.generateTxHash(
+blockNum,
+certHash,
+Date.now()
+);
+
+// create certificate object
+const cert={
+id:"CERT-"+Date.now(),
+studentName:name,
+studentId:studentId,
+course:course,
+institution:institution,
+issueDate:date,
+grade:grade,
+certHash:certHash,
+txHash:txHash,
+blockNum:blockNum
+};
+
+// save certificate
+if(typeof CertificateDB!=="undefined"){
+CertificateDB.addCertificate(cert);
+}
+
+generatedCert=cert;
+
+renderPreview(cert);
+
+document.getElementById("miningAnim").style.display="none";
+document.getElementById("certResult").style.display="block";
+
+showBanner("successBanner","✅ Certificate Generated Successfully");
+
+}
+catch(err){
+
+showBanner("errorBanner","❌ Error: "+err.message);
+
+}
+
+if(btn) btn.disabled=false;
+
+}
+
+
+// ================= CERTIFICATE PREVIEW =================
+function renderPreview(cert){
+
+const name=document.getElementById("previewName");
+const course=document.getElementById("previewCourse");
+const inst=document.getElementById("previewInstitution");
+const inst2=document.getElementById("previewInst2");
+const grade=document.getElementById("previewGrade");
+const date=document.getElementById("previewDate");
+
+if(name) name.textContent=cert.studentName;
+if(course) course.textContent=cert.course;
+if(inst) inst.textContent=cert.institution.toUpperCase();
+if(inst2) inst2.textContent=cert.institution;
+if(grade) grade.textContent=cert.grade;
+if(date) date.textContent=formatDate(cert.issueDate);
+
+}
+
+
+// ================= HELPER FUNCTIONS =================
+function formatDate(date){
+
+const d=new Date(date);
+return d.toLocaleDateString();
+
+}
+
+function shortHash(hash){
+
+if(!hash) return "";
+return hash.substring(0,10)+"...";
+
+}
+
+function showBanner(id,msg){
+
+const el=document.getElementById(id);
+
+if(!el) return;
+
+el.textContent=msg;
+el.style.display="block";
+
+setTimeout(()=>{
+el.style.display="none";
+},4000);
+
+}
+
+</script>
