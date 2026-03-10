@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Digital Skill Passport — SkillChain</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  .passport-cover {
+    background: linear-gradient(135deg, #0a1628, #0d2040, #0a1a30);
+    border: 2px solid var(--accent-gold);
+    border-radius: 20px;
+    padding: 2.5rem;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 2rem;
+  }
+  .passport-cover::before {
+    content: '';
+    position: absolute;
+    top: -100px; right: -100px;
+    width: 300px; height: 300px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(212,160,23,0.08) 0%, transparent 70%);
+  }
+  .passport-cover::after {
+    content: 'SKILL\nPASSPORT';
+    position: absolute;
+    bottom: 20px; right: 30px;
+    font-family: 'Orbitron', monospace;
+    font-size: 60px;
+    font-weight: 900;
+    color: rgba(212,160,23,0.04);
+    line-height: 0.9;
+    text-align: right;
+    white-space: pre;
+    pointer-events: none;
+  }
+  .passport-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 2rem;
+    margin-bottom: 2rem;
+  }
+  .passport-photo {
+    width: 100px; height: 120px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #1a3060, #0d2040);
+    border: 2px solid var(--accent-gold);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 48px;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .passport-photo-badge {
+    position: absolute;
+    bottom: -10px; left: 50%;
+    transform: translateX(-50%);
+    background: var(--accent-gold);
+    color: var(--bg-primary);
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
+    font-family: 'Rajdhani', sans-serif;
+    letter-spacing: 1px;
+  }
+  .passport-meta { flex: 1; }
+  .passport-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--accent-gold);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .passport-name {
+    font-family: 'Orbitron', monospace;
+    font-size: 28px;
+    font-weight: 900;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+  }
+  .passport-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .passport-field { }
+  .passport-field-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 2px;
+    font-family: 'Rajdhani', sans-serif;
+  }
+  .passport-field-val {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    color: var(--text-primary);
+  }
+  .passport-field-val.gold { color: var(--accent-gold); }
+  .passport-field-val.cyan { color: var(--accent-cyan); }
+  .passport-field-val.green { color: var(--accent-green); }
+  .passport-mrz {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(212,160,23,0.2);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 2px;
+    line-height: 1.8;
+  }
+  .skill-tag {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-family: 'Share Tech Mono', monospace;
+    margin: 3px;
+    border: 1px solid;
+  }
+  .skill-tag.blue { background: rgba(26,108,240,0.12); border-color: rgba(26,108,240,0.3); color: #4a90f0; }
+  .skill-tag.green { background: rgba(0,200,117,0.1); border-color: rgba(0,200,117,0.3); color: var(--accent-green); }
+  .skill-tag.gold { background: rgba(212,160,23,0.1); border-color: rgba(212,160,23,0.3); color: var(--accent-gold); }
+  .skill-tag.red { background: rgba(255,51,68,0.1); border-color: rgba(255,51,68,0.3); color: var(--accent-red); }
+  .skill-tag.purple { background: rgba(136,85,255,0.12); border-color: rgba(136,85,255,0.3); color: var(--accent-purple); }
+  .wallet-addr-box {
+    background: rgba(0,0,0,0.4);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    color: var(--accent-cyan);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .wallet-addr-box:hover { border-color: var(--accent-cyan); }
+  .copy-btn {
+    padding: 4px 10px;
+    background: rgba(0,212,255,0.1);
+    border: 1px solid rgba(0,212,255,0.2);
+    border-radius: 4px;
+    color: var(--accent-cyan);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Rajdhani', sans-serif;
+  }
+  .copy-btn:hover { background: rgba(0,212,255,0.2); }
+  .cert-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; }
+  .cert-wallet-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+  }
+  .cert-wallet-card:hover { transform: translateY(-3px); box-shadow: 0 10px 35px rgba(0,0,0,0.3); }
+  .cert-wallet-top {
+    padding: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--border-color);
+  }
+  .cert-wallet-icon {
+    width: 48px; height: 48px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+    flex-shrink: 0;
+  }
+  .cert-wallet-name { font-weight: 600; font-size: 14px; color: var(--text-primary); }
+  .cert-wallet-org { font-size: 12px; color: var(--text-secondary); }
+  .cert-wallet-body { padding: 1rem 1.25rem; }
+  .cert-wallet-hash {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .cert-wallet-footer {
+    padding: 10px 1.25rem;
+    background: rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .chain-verified {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--accent-green);
+    font-family: 'Share Tech Mono', monospace;
+  }
+  .skill-graph {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .skill-bar-item { }
+  .skill-bar-header { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+  .skill-bar-name { color: var(--text-secondary); font-family: 'Rajdhani', sans-serif; text-transform: uppercase; letter-spacing: 0.5px; }
+  .skill-bar-pct { color: var(--text-primary); font-family: 'Share Tech Mono', monospace; }
+  .timeline-wrapper { max-height: 400px; overflow-y: auto; }
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+  <a href="index.html" class="nav-brand">
+    <div class="logo-icon">⛓️</div>
+    <div>
+      <span class="brand-text">SKILLCHAIN</span>
+      <span class="brand-sub">BLOCKCHAIN PASSPORT v3.0</span>
+    </div>
+  </a>
+  <ul class="nav-links">
+    <li><a href="index.html">🏠 Dashboard</a></li>
+    <li><a href="passport.html" class="active">🎓 Passport</a></li>
+    <li><a href="certificate.html">📜 Certificates</a></li>
+    <li><a href="blockchain.html">⛓️ Blockchain</a></li>
+    <li><a href="verify.html">🔍 Verify</a></li>
+    <li><a href="fraud.html">🤖 AI Fraud</a></li>
+  </ul>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <span class="net-dot"></span>
+    <span style="font-size:11px;color:var(--accent-green);font-family:'Share Tech Mono',monospace;">MAINNET LIVE</span>
+  </div>
+</nav>
+
+<div class="page-wrapper">
+  <div class="page-header">
+    <div class="header-badge">🎓 Blockchain Credential Passport</div>
+    <h1>Trustchain System</h1>
+    <p>Your verified credentials, permanently anchored to the blockchain. One wallet, all certificates.</p>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('passport')">🪪 Passport</button>
+    <button class="tab-btn" onclick="switchTab('wallet')">💼 Wallet</button>
+    <button class="tab-btn" onclick="switchTab('skills')">📊 Skills</button>
+    <button class="tab-btn" onclick="switchTab('timeline')">📅 Timeline</button>
+  </div>
+
+  <!-- TAB: PASSPORT -->
+  <div class="tab-content active" id="tab-passport">
+
+    <!-- PASSPORT COVER -->
+    <div class="passport-cover">
+      <div class="passport-header">
+        <div class="passport-photo">
+          👨‍🎓
+          <div class="passport-photo-badge">VERIFIED</div>
+        </div>
+        <div class="passport-meta">
+          <div class="passport-title">🔰 Government of India · Ministry of Education · SkillChain Authority</div>
+          <div class="passport-name">Nayan Fulare</div>
+          <div class="passport-fields">
+            <div class="passport-field">
+              <div class="passport-field-label">Passport ID</div>
+              <div class="passport-field-val cyan">Mrs_nayan_f0812</div>
+            </div>
+            <div class="passport-field">
+              <div class="passport-field-label">Nationality</div>
+              <div class="passport-field-val">INDIAN</div>
+            </div>
+            <div class="passport-field">
+              <div class="passport-field-label">Issue Date</div>
+              <div class="passport-field-val">10th March 2026</div>
+            </div>
+            <div class="passport-field">
+              <div class="passport-field-label">Valid Until</div>
+              <div class="passport-field-val gold">31 DEC 2029</div>
+            </div>
+            <div class="passport-field">
+              <div class="passport-field-label">Credentials</div>
+              <div class="passport-field-val green">5 VERIFIED</div>
+            </div>
+            <div class="passport-field">
+              <div class="passport-field-label">Status</div>
+              <div class="passport-field-val green">✓ ACTIVE</div>
+            </div>
+          </div>
+        </div>
+        <div style="text-align:center;">
+          <div id="passportQR" style="background:white;padding:10px;border-radius:8px;width:fit-content;"></div>
+          <div style="font-size:9px;color:var(--text-muted);margin-top:6px;font-family:'Share Tech Mono';letter-spacing:1px;">SCAN TO VERIFY</div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:1rem;">
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-family:'Rajdhani',sans-serif;">Blockchain Wallet Address</div>
+        <div class="wallet-addr-box" onclick="copyWallet()">
+          <span id="walletAddr">0xA3F8E2D91C6B4507F28E3A1B9D5C7E0F4A2B8D6</span>
+          <button class="copy-btn" id="copyBtn">COPY</button>
+        </div>
+      </div>
+
+      <div class="passport-mrz">
+        P&lt;IND&lt;SHARMA&lt;&lt;Nayan&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;<br>
+        SKP78410INDIA9401015M2912316&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;9
+      </div>
+    </div>
+
+    <!-- SKILLS SNAPSHOT -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;">
+      <div class="card">
+        <h3 class="section-title">🏅 Earned Skills</h3>
+        <div id="skillTagsContainer"></div>
+      </div>
+      <div class="card">
+        <h3 class="section-title">📊 Credential Summary</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div style="text-align:center;padding:12px;background:rgba(26,108,240,0.08);border-radius:8px;border:1px solid rgba(26,108,240,0.2);">
+            <div style="font-family:'Orbitron',monospace;font-size:28px;font-weight:700;color:var(--accent-blue);">5</div>
+            <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Certificates</div>
+          </div>
+          <div style="text-align:center;padding:12px;background:rgba(212,160,23,0.08);border-radius:8px;border:1px solid rgba(212,160,23,0.2);">
+            <div style="font-family:'Orbitron',monospace;font-size:28px;font-weight:700;color:var(--accent-gold);">22</div>
+            <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Skills</div>
+          </div>
+          <div style="text-align:center;padding:12px;background:rgba(0,200,117,0.08);border-radius:8px;border:1px solid rgba(0,200,117,0.2);">
+            <div style="font-family:'Orbitron',monospace;font-size:28px;font-weight:700;color:var(--accent-green);">22</div>
+            <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Credits</div>
+          </div>
+          <div style="text-align:center;padding:12px;background:rgba(136,85,255,0.08);border-radius:8px;border:1px solid rgba(136,85,255,0.2);">
+            <div style="font-family:'Orbitron',monospace;font-size:28px;font-weight:700;color:var(--accent-purple);">100%</div>
+            <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Verified</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: WALLET -->
+  <div class="tab-content" id="tab-wallet">
+    <div class="wallet-header">
+      <div class="wallet-avatar">👨‍🎓</div>
+      <div>
+        <div class="wallet-name">Arjun Sharma</div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px;">Student ID: STU-7841</div>
+        <div class="wallet-address" id="walletAddr2">0xA3F8E2D91C6B4507F28E3A1B9D5C7E0F4A2B8D6</div>
+      </div>
+      <div style="margin-left:auto;text-align:right;">
+        <div style="font-family:'Orbitron',monospace;font-size:22px;color:var(--accent-gold);">5 NFT-Certs</div>
+        <div style="font-size:12px;color:var(--text-secondary);">On SkillChain Mainnet</div>
+        <span class="badge badge-blockchain" style="margin-top:6px;">⛓ Chain ID: 1337</span>
+      </div>
+    </div>
+    
+
+    <h3 class="section-title">💼 Certificate Wallet</h3>
+    <div class="cert-grid" id="walletCerts"></div>
+  </div>
+
+  <!-- TAB: SKILLS -->
+  <div class="tab-content" id="tab-skills">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;">
+      <div class="card">
+        <h3 class="section-title">📊 Skill Proficiency</h3>
+        <div class="skill-graph" id="skillGraph"></div>
+      </div>
+      <div class="card">
+        <h3 class="section-title">🏆 Achievement Badges</h3>
+        <div id="achievementBadges" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:1.25rem;">
+      <h3 class="section-title">📋 All Verified Skills</h3>
+      <div id="allSkillTags" style="margin-top:4px;"></div>
+    </div>
+  </div>
+
+  <!-- TAB: TIMELINE -->
+  <div class="tab-content" id="tab-timeline">
+    <div class="card">
+      <h3 class="section-title">📅 Credential Timeline</h3>
+      <div class="timeline-wrapper">
+        <div class="timeline" id="credTimeline"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer class="footer">
+  ⛓ SKILLCHAIN BLOCKCHAIN · SHA-256 SECURED · AI-POWERED FRAUD DETECTION · IMMUTABLE LEDGER
+</footer>
+
+<!-- CERT MODAL -->
+<div class="modal-overlay" id="certModal">
+  <div class="modal-box" style="max-width:700px;">
+    <div class="modal-header">
+      <span class="modal-title">📜 Certificate Details</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalContent"></div>
+  </div>
+</div>
+
+<script src="js/blockchain.js"></script>
+<script>
+  const certs = CertificateDB.getAll();
+
+  // Generate passport QR
+  new QRCode(document.getElementById('passportQR'), {
+    text: 'https://skillchain.gov.in/verify/passport/SKP-IN-2024-7841',
+    width: 100, height: 100,
+    colorDark: '#041229', colorLight: '#ffffff'
+  });
+
+  // Skill tags
+  const allSkills = [];
+  const colorMap = {blue:'blue',green:'green',gold:'gold',red:'red',purple:'purple',cyan:'blue'};
+  certs.forEach(cert => cert.skills.forEach(s => { if(!allSkills.includes(s)) allSkills.push(s); }));
+
+  const skillContainer = document.getElementById('skillTagsContainer');
+  const allSkillContainer = document.getElementById('allSkillTags');
+  const colors = ['blue','green','gold','red','purple'];
+  allSkills.slice(0,12).forEach((s,i) => {
+    skillContainer.innerHTML += `<span class="skill-tag ${colors[i%colors.length]}">${s}</span>`;
+  });
+  allSkills.forEach((s,i) => {
+    allSkillContainer.innerHTML += `<span class="skill-tag ${colors[i%colors.length]}">${s}</span>`;
+  });
+
+  // Wallet cards
+  const walletContainer = document.getElementById('walletCerts');
+  const bgMap = {blue:'rgba(26,108,240,0.15)',green:'rgba(0,200,117,0.12)',gold:'rgba(212,160,23,0.15)',red:'rgba(255,51,68,0.1)',purple:'rgba(136,85,255,0.15)'};
+  certs.forEach(cert => {
+    walletContainer.innerHTML += `
+      <div class="cert-wallet-card" onclick="openCertModal('${cert.id}')">
+        <div class="cert-wallet-top">
+          <div class="cert-wallet-icon" style="background:${bgMap[cert.color]}">${cert.icon}</div>
+          <div>
+            <div class="cert-wallet-name">${cert.course}</div>
+            <div class="cert-wallet-org">${cert.institution}</div>
+          </div>
+        </div>
+        <div class="cert-wallet-body">
+          <div class="cert-wallet-hash">TX: ${shortHash(cert.txHash)}</div>
+          <div class="cert-wallet-hash">HASH: ${shortHash(cert.certHash)}</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
+            ${cert.skills.slice(0,3).map(s=>`<span class="skill-tag ${cert.color}">${s}</span>`).join('')}
+          </div>
+        </div>
+        <div class="cert-wallet-footer">
+          <div class="chain-verified"><span class="net-dot" style="width:6px;height:6px;"></span>Block #${cert.blockNum}</div>
+          <span class="badge badge-verified">✓ ${cert.confirmations} conf</span>
+        </div>
+      </div>`;
+  });
+
+  // Skill graph
+  const skillData = [
+    { name: 'AI / Machine Learning', pct: 90, color: 'blue' },
+    { name: 'Web Development', pct: 85, color: 'green' },
+    { name: 'Cloud Computing (AWS)', pct: 78, color: 'gold' },
+    { name: 'Cybersecurity', pct: 82, color: 'red' },
+    { name: 'Data Science', pct: 88, color: 'blue' },
+    { name: 'Python Programming', pct: 92, color: 'green' },
+  ];
+  const graphContainer = document.getElementById('skillGraph');
+  skillData.forEach(s => {
+    graphContainer.innerHTML += `
+      <div class="skill-bar-item">
+        <div class="skill-bar-header">
+          <span class="skill-bar-name">${s.name}</span>
+          <span class="skill-bar-pct">${s.pct}%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill ${s.color}" style="width:${s.pct}%"></div></div>
+      </div>`;
+  });
+
+  // Achievement badges
+  const achievements = ['🏆 Top Learner', '⭐ AI Specialist', '🔒 Security Expert', '☁️ Cloud Pro', '💻 Full-Stack Dev', '📊 Data Wizard'];
+  const achContainer = document.getElementById('achievementBadges');
+  achievements.forEach(a => {
+    achContainer.innerHTML += `<div style="background:rgba(26,108,240,0.1);border:1px solid rgba(26,108,240,0.2);border-radius:8px;padding:12px 16px;font-size:13px;color:var(--text-secondary);text-align:center;">${a}</div>`;
+  });
+
+  // Timeline
+  const timelineContainer = document.getElementById('credTimeline');
+  const sortedCerts = [...certs].sort((a,b) => new Date(b.issueDate) - new Date(a.issueDate));
+  const colorToClass = {blue:'',green:'success',gold:'',red:'danger',purple:''};
+  sortedCerts.forEach(cert => {
+    timelineContainer.innerHTML += `
+      <div class="timeline-item ${colorToClass[cert.color]||''}">
+        <div class="timeline-time">${formatDate(cert.issueDate)} · Block #${cert.blockNum}</div>
+        <div class="timeline-text">
+          <strong style="color:var(--text-primary);">${cert.course}</strong> — ${cert.institution}<br>
+          <span style="font-size:11px;color:var(--text-muted);font-family:'Share Tech Mono',monospace;">TX: ${shortHash(cert.txHash)}</span>
+          <span class="badge badge-verified" style="margin-left:8px;">✓ ${cert.grade}</span>
+        </div>
+      </div>`;
+  });
+
+  // Tab switching
+  function switchTab(name) {
+    document.querySelectorAll('.tab-btn').forEach((btn,i) => {
+      btn.classList.toggle('active', ['passport','wallet','skills','timeline'][i] === name);
+    });
+    document.querySelectorAll('.tab-content').forEach(tc => {
+      tc.classList.toggle('active', tc.id === 'tab-'+name);
+    });
+  }
+
+  function copyWallet() {
+    navigator.clipboard.writeText('0xA3F8E2D91C6B4507F28E3A1B9D5C7E0F4A2B8D6');
+    document.getElementById('copyBtn').textContent = 'COPIED!';
+    setTimeout(() => document.getElementById('copyBtn').textContent = 'COPY', 2000);
+  }
+
+  function openCertModal(id) {
+    const cert = CertificateDB.getById(id);
+    if (!cert) return;
+    document.getElementById('modalContent').innerHTML = `
+      <div class="alert alert-success">✅ Certificate is BLOCKCHAIN VERIFIED · ${cert.confirmations} confirmations</div>
+      <div style="display:grid;gap:10px;">
+        <div><div class="form-label">Course</div><div style="color:var(--text-primary);font-size:15px;font-weight:600;">${cert.course}</div></div>
+        <div><div class="form-label">Institution</div><div style="color:var(--text-secondary);">${cert.institution}</div></div>
+        <div><div class="form-label">Issue Date</div><div style="color:var(--text-secondary);">${formatDate(cert.issueDate)}</div></div>
+        <div><div class="form-label">Grade</div><div style="color:var(--accent-gold);font-family:'Share Tech Mono',monospace;">${cert.grade}</div></div>
+        <div><div class="form-label">Certificate Hash (SHA-256)</div><div class="hash-text">${cert.certHash}</div></div>
+        <div><div class="form-label">Transaction Hash</div><div class="hash-text">${cert.txHash}</div></div>
+        <div><div class="form-label">Block Hash</div><div class="hash-text">${cert.blockHash}</div></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+          <div><div class="form-label">Block #</div><div style="color:var(--accent-cyan);font-family:'Share Tech Mono',monospace;">${cert.blockNum}</div></div>
+          <div><div class="form-label">Nonce</div><div style="color:var(--accent-cyan);font-family:'Share Tech Mono',monospace;">${cert.nonce}</div></div>
+          <div><div class="form-label">Gas Used</div><div style="color:var(--accent-cyan);font-family:'Share Tech Mono',monospace;">${cert.gasUsed}</div></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:1.25rem;flex-wrap:wrap;">
+        <a href="certificate.html?id=${cert.id}" class="btn btn-gold">📜 View Certificate</a>
+        <a href="blockchain.html?tx=${cert.txHash}" class="btn btn-primary">⛓ View on Blockchain</a>
+        <a href="verify.html?hash=${cert.certHash}" class="btn btn-outline">🔍 Verify Hash</a>
+      </div>`;
+    document.getElementById('certModal').classList.add('open');
+  }
+
+  function closeModal() { document.getElementById('certModal').classList.remove('open'); }
+</script>
+</body>
+</html>
