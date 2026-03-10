@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blockchain Explorer — SkillChain</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .explorer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.5rem; }
+  .block-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.25rem;
+    cursor: pointer;
+    transition: all 0.25s;
+    position: relative;
+  }
+  .block-card:hover { border-color: var(--accent-blue); box-shadow: 0 0 20px rgba(26,108,240,0.15); }
+  .block-card.selected { border-color: var(--accent-cyan); box-shadow: 0 0 25px rgba(0,212,255,0.2); }
+  .block-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--accent-blue), transparent); border-radius: 12px 12px 0 0; }
+  .block-num-label { font-family: 'Orbitron', monospace; font-size: 11px; color: var(--text-muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; }
+  .block-num-val { font-family: 'Orbitron', monospace; font-size: 30px; font-weight: 900; color: var(--accent-blue); margin-bottom: 10px; }
+  .block-hash-disp { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--accent-cyan); margin-bottom: 8px; word-break: break-all; }
+  .block-meta-row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; }
+  .block-meta-key { color: var(--text-muted); font-family: 'Rajdhani', sans-serif; text-transform: uppercase; letter-spacing: 0.5px; }
+  .block-meta-val { font-family: 'Share Tech Mono', monospace; color: var(--text-secondary); }
+  .block-meta-val.green { color: var(--accent-green); }
+  .block-meta-val.gold { color: var(--accent-gold); }
+  .chain-visual { display: flex; align-items: center; overflow-x: auto; padding: 1.5rem 0; gap: 0; margin-bottom: 2rem; scrollbar-width: thin; scrollbar-color: var(--accent-blue) transparent; }
+  .chain-block {
+    flex-shrink: 0;
+    width: 160px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+  .chain-block:hover { border-color: var(--accent-cyan); transform: translateY(-2px); }
+  .chain-block.active { border-color: var(--accent-blue); box-shadow: 0 0 20px rgba(26,108,240,0.3); background: rgba(26,108,240,0.08); }
+  .chain-block.genesis { border-color: var(--accent-gold); }
+  .chain-block-num { font-family: 'Orbitron', monospace; font-size: 10px; color: var(--text-muted); letter-spacing: 1px; }
+  .chain-block-val { font-family: 'Orbitron', monospace; font-size: 18px; font-weight: 700; color: var(--accent-blue); }
+  .chain-block-hash { font-family: 'Share Tech Mono', monospace; font-size: 9px; color: var(--text-muted); margin: 4px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chain-block-tx { font-size: 10px; color: var(--text-muted); }
+  .chain-arrow { flex-shrink: 0; padding: 0 6px; color: var(--accent-blue); font-size: 20px; opacity: 0.6; }
+  .tx-detail-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.25rem; }
+  .tx-row { display: flex; padding: 10px 0; border-bottom: 1px solid rgba(13,48,96,0.4); gap: 1rem; }
+  .tx-row:last-child { border-bottom: none; }
+  .tx-key { font-family: 'Rajdhani', sans-serif; font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; min-width: 140px; flex-shrink: 0; }
+  .tx-val { font-family: 'Share Tech Mono', monospace; font-size: 12px; color: var(--text-secondary); word-break: break-all; }
+  .tx-val.green { color: var(--accent-green); }
+  .tx-val.cyan { color: var(--accent-cyan); }
+  .tx-val.gold { color: var(--accent-gold); }
+  .mining-animation { text-align: center; padding: 2rem; background: rgba(0,0,0,0.3); border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 1.25rem; }
+  .mining-hash { font-family: 'Share Tech Mono', monospace; font-size: 12px; color: var(--text-muted); letter-spacing: 1px; margin: 10px 0; }
+  .mining-nonce { font-family: 'Orbitron', monospace; font-size: 24px; color: var(--accent-cyan); font-weight: 700; }
+  .merkle-tree { text-align: center; padding: 1rem; }
+  .merkle-node { display: inline-block; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 10px; font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--accent-cyan); margin: 4px; cursor: pointer; transition: all 0.2s; }
+  .merkle-node:hover { border-color: var(--accent-cyan); }
+  .merkle-node.root { background: rgba(26,108,240,0.1); border-color: var(--accent-blue); color: var(--text-primary); font-size: 11px; font-weight: 600; }
+  .merkle-level { margin: 6px 0; }
+  .merkle-label { font-size: 11px; color: var(--text-muted); font-family: 'Rajdhani',sans-serif; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .proof-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0,200,117,0.1);
+    border: 1px solid rgba(0,200,117,0.3);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    color: var(--accent-green);
+    margin-bottom: 1rem;
+  }
+  .consensus-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+  .node-card { background: rgba(0,200,117,0.05); border: 1px solid rgba(0,200,117,0.15); border-radius: 8px; padding: 12px; text-align: center; }
+  .node-icon { font-size: 24px; margin-bottom: 6px; }
+  .node-id { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--text-muted); }
+  .node-status { font-size: 11px; color: var(--accent-green); font-family: 'Rajdhani',sans-serif; text-transform: uppercase; letter-spacing: 0.5px; }
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+  <a href="index.html" class="nav-brand">
+    <div class="logo-icon">⛓️</div>
+    <div>
+      <span class="brand-text">SKILLCHAIN</span>
+      <span class="brand-sub">BLOCKCHAIN PASSPORT v3.0</span>
+    </div>
+  </a>
+  <ul class="nav-links">
+    <li><a href="index.html">🏠 Dashboard</a></li>
+    <li><a href="passport.html">🎓 Passport</a></li>
+    <li><a href="certificate.html">📜 Certificates</a></li>
+    <li><a href="blockchain.html" class="active">⛓️ Blockchain</a></li>
+    <li><a href="verify.html">🔍 Verify</a></li>
+    <li><a href="fraud.html">🤖 AI Fraud</a></li>
+  </ul>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <span class="net-dot"></span>
+    <span style="font-size:11px;color:var(--accent-green);font-family:'Share Tech Mono',monospace;">MAINNET LIVE</span>
+  </div>
+</nav>
+
+<div class="page-wrapper">
+  <div class="page-header">
+    <div class="header-badge">⛓ Blockchain Transaction Explorer</div>
+    <h1>Blockchain Explorer</h1>
+    <p>View transaction proofs, block hashes, Merkle trees, and full mining history for every certificate on-chain.</p>
+  </div>
+
+  <!-- NETWORK STATS -->
+  <div class="stats-grid" style="grid-template-columns:repeat(6,1fr);">
+    <div class="stat-card"><div class="stat-icon blue">📦</div><div><div class="stat-value" id="chainHeight">4,977</div><div class="stat-label">Chain Height</div></div></div>
+    <div class="stat-card"><div class="stat-icon gold">📜</div><div><div class="stat-value">5,247</div><div class="stat-label">Certificates</div></div></div>
+    <div class="stat-card"><div class="stat-icon green">⚡</div><div><div class="stat-value">847</div><div class="stat-label">TPS</div></div></div>
+    <div class="stat-card"><div class="stat-icon cyan">🔐</div><div><div class="stat-value">2</div><div class="stat-label">Difficulty</div></div></div>
+    <div class="stat-card"><div class="stat-icon purple">🌐</div><div><div class="stat-value">8</div><div class="stat-label">Peer Nodes</div></div></div>
+    <div class="stat-card"><div class="stat-icon green">✅</div><div><div class="stat-value">100%</div><div class="stat-label">Uptime</div></div></div>
+  </div>
+
+  <!-- CHAIN VISUALIZATION -->
+  <div class="card" style="margin-bottom:1.5rem;">
+    <h3 class="section-title">⛓ Chain Visualization</h3>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:1rem;">Click any block to inspect its contents. Each block's hash begins with <span style="color:var(--accent-cyan);font-family:'Share Tech Mono';">0000...</span> (Proof of Work)</p>
+    <div class="chain-visual" id="chainVisual"></div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('block')">📦 Block Detail</button>
+    <button class="tab-btn" onclick="switchTab('transaction')">🔁 Transaction</button>
+    <button class="tab-btn" onclick="switchTab('merkle')">🌳 Merkle Tree</button>
+    <button class="tab-btn" onclick="switchTab('consensus')">🌐 Consensus</button>
+    <button class="tab-btn" onclick="switchTab('mining')">⛏ Mining Log</button>
+  </div>
+
+  <!-- BLOCK DETAIL -->
+  <div class="tab-content active" id="tab-block">
+    <div class="proof-badge" id="proofBadge">
+      ✅ PROOF OF WORK VERIFIED · Hash starts with 0000... · Difficulty: 2 · Nonce found in &lt;10,000 attempts
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;" id="blockDetailGrid"></div>
+  </div>
+
+  <!-- TRANSACTION -->
+  <div class="tab-content" id="tab-transaction">
+    <h3 class="section-title" style="margin-bottom:1rem;">🔁 Transaction Details</h3>
+    <div id="txDetailArea"></div>
+  </div>
+
+  <!-- MERKLE TREE -->
+  <div class="tab-content" id="tab-merkle">
+    <div class="card">
+      <h3 class="section-title">🌳 Merkle Tree</h3>
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:1rem;">The Merkle root is stored in each block header. It proves that all certificate transactions are included and unmodified.</p>
+      <div class="merkle-tree" id="merkleTree"></div>
+    </div>
+  </div>
+
+  <!-- CONSENSUS -->
+  <div class="tab-content" id="tab-consensus">
+    <div class="card" style="margin-bottom:1.25rem;">
+      <h3 class="section-title">🌐 Network Consensus</h3>
+      <div class="alert alert-success">✅ Consensus achieved across all 8 nodes · 100% agreement · No forks detected</div>
+      <div class="consensus-grid" id="nodeGrid"></div>
+    </div>
+    <div class="card">
+      <h3 class="section-title">📊 Peer Node Status</h3>
+      <table class="data-table">
+        <thead><tr><th>Node ID</th><th>Location</th><th>Block Height</th><th>Latency</th><th>Status</th></tr></thead>
+        <tbody id="nodeTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- MINING LOG -->
+  <div class="tab-content" id="tab-mining">
+    <div class="card" style="margin-bottom:1.25rem;">
+      <h3 class="section-title">⛏ Mining Activity</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+        <div style="text-align:center;padding:1rem;background:rgba(0,212,255,0.05);border-radius:8px;border:1px solid rgba(0,212,255,0.1);">
+          <div style="font-family:'Orbitron',monospace;font-size:28px;color:var(--accent-cyan);" id="mineNonce">0</div>
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Current Nonce</div>
+        </div>
+        <div style="text-align:center;padding:1rem;background:rgba(0,200,117,0.05);border-radius:8px;border:1px solid rgba(0,200,117,0.1);">
+          <div style="font-family:'Orbitron',monospace;font-size:28px;color:var(--accent-green);" id="mineHash">----</div>
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Hash Prefix</div>
+        </div>
+      </div>
+      <div class="mining-hash" id="currentHashDisplay">Waiting for next block...</div>
+      <div class="progress-bar" style="margin-top:10px;"><div class="progress-fill blue" id="mineProgress" style="width:0%"></div></div>
+    </div>
+    <div class="card">
+      <h3 class="section-title">📋 Mining History</h3>
+      <table class="data-table">
+        <thead><tr><th>Block #</th><th>Nonce</th><th>Hash (first 16)</th><th>Cert Anchored</th><th>Time</th></tr></thead>
+        <tbody id="miningHistory"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<footer class="footer">
+  ⛓ SKILLCHAIN BLOCKCHAIN · SHA-256 SECURED · PROOF OF WORK · MERKLE TREE VALIDATED
+</footer>
+
+<script src="js/blockchain.js"></script>
+<script>
+  const certs = CertificateDB.getAll();
+  let selectedCertIdx = 0;
+
+  // Build chain visualization
+  const chainVisual = document.getElementById('chainVisual');
+  const genesisBlock = document.createElement('div');
+  genesisBlock.className = 'chain-block genesis';
+  genesisBlock.innerHTML = `<div class="chain-block-num">BLOCK</div><div class="chain-block-val">0</div><div class="chain-block-hash">0000000000000000</div><div class="chain-block-tx">Genesis</div>`;
+  chainVisual.appendChild(genesisBlock);
+
+  certs.forEach((cert, i) => {
+    const arrow = document.createElement('div');
+    arrow.className = 'chain-arrow';
+    arrow.innerHTML = '→';
+    chainVisual.appendChild(arrow);
+
+    const block = document.createElement('div');
+    block.className = 'chain-block' + (i === 0 ? ' active' : '');
+    block.innerHTML = `
+      <div class="chain-block-num">BLOCK</div>
+      <div class="chain-block-val">#${cert.blockNum}</div>
+      <div class="chain-block-hash">${cert.blockHash.substring(0,16)}...</div>
+      <div class="chain-block-tx">${cert.icon} 1 TX</div>`;
+    block.onclick = () => selectBlock(i);
+    chainVisual.appendChild(block);
+  });
+
+  function selectBlock(idx) {
+    selectedCertIdx = idx;
+    document.querySelectorAll('.chain-block').forEach((b, i) => {
+      b.classList.toggle('active', i === idx + 1); // +1 for genesis
+    });
+    renderBlockDetail(idx);
+    renderTransaction(idx);
+    renderMerkle(idx);
+  }
+
+  function renderBlockDetail(idx) {
+    const cert = certs[idx];
+    document.getElementById('blockDetailGrid').innerHTML = `
+      <div class="tx-detail-card">
+        <h3 class="section-title" style="font-size:13px;">📦 Block Header</h3>
+        <div class="tx-row"><span class="tx-key">Block Number</span><span class="tx-val cyan">#${cert.blockNum}</span></div>
+        <div class="tx-row"><span class="tx-key">Block Hash</span><span class="tx-val">${cert.blockHash}</span></div>
+        <div class="tx-row"><span class="tx-key">Previous Hash</span><span class="tx-val">${cert.blockHash.split('').reverse().join('').substring(0,64)}</span></div>
+        <div class="tx-row"><span class="tx-key">Nonce</span><span class="tx-val gold">${cert.nonce}</span></div>
+        <div class="tx-row"><span class="tx-key">Difficulty</span><span class="tx-val">2 (0000...)</span></div>
+        <div class="tx-row"><span class="tx-key">Timestamp</span><span class="tx-val">${formatDate(cert.issueDate)} 14:23:07 IST</span></div>
+        <div class="tx-row"><span class="tx-key">Network</span><span class="tx-val">${cert.network}</span></div>
+        <div class="tx-row"><span class="tx-key">Size</span><span class="tx-val">2.1 KB</span></div>
+      </div>
+      <div class="tx-detail-card">
+        <h3 class="section-title" style="font-size:13px;">📜 Certificate Data</h3>
+        <div class="tx-row"><span class="tx-key">Cert ID</span><span class="tx-val cyan">${cert.id}</span></div>
+        <div class="tx-row"><span class="tx-key">Student</span><span class="tx-val">${cert.studentName}</span></div>
+        <div class="tx-row"><span class="tx-key">Course</span><span class="tx-val">${cert.course}</span></div>
+        <div class="tx-row"><span class="tx-key">Institution</span><span class="tx-val">${cert.institution}</span></div>
+        <div class="tx-row"><span class="tx-key">Grade</span><span class="tx-val gold">${cert.grade}</span></div>
+        <div class="tx-row"><span class="tx-key">Confirmations</span><span class="tx-val green">${cert.confirmations} ✓</span></div>
+        <div class="tx-row"><span class="tx-key">Wallet</span><span class="tx-val" style="font-size:10px;">${cert.walletAddress}</span></div>
+        <div class="tx-row"><span class="tx-key">Status</span><span class="tx-val green">CONFIRMED ✓</span></div>
+      </div>`;
+  }
+
+  function renderTransaction(idx) {
+    const cert = certs[idx];
+    document.getElementById('txDetailArea').innerHTML = `
+      <div class="proof-badge">✅ TRANSACTION CONFIRMED · ${cert.confirmations} Confirmations · Finalized</div>
+      <div class="tx-detail-card">
+        <h3 class="section-title" style="font-size:13px;">🔁 Transaction Record</h3>
+        <div class="tx-row"><span class="tx-key">Transaction Hash</span><span class="tx-val">${cert.txHash}</span></div>
+        <div class="tx-row"><span class="tx-key">Certificate Hash</span><span class="tx-val">${cert.certHash}</span></div>
+        <div class="tx-row"><span class="tx-key">Block Hash</span><span class="tx-val">${cert.blockHash}</span></div>
+        <div class="tx-row"><span class="tx-key">From Wallet</span><span class="tx-val cyan">${cert.walletAddress}</span></div>
+        <div class="tx-row"><span class="tx-key">To Contract</span><span class="tx-val cyan">0xSKILLCHAIN_REGISTRY_CONTRACT_v2</span></div>
+        <div class="tx-row"><span class="tx-key">Block Number</span><span class="tx-val gold">#${cert.blockNum}</span></div>
+        <div class="tx-row"><span class="tx-key">Gas Used</span><span class="tx-val">${cert.gasUsed} units</span></div>
+        <div class="tx-row"><span class="tx-key">Nonce</span><span class="tx-val">${cert.nonce}</span></div>
+        <div class="tx-row"><span class="tx-key">Confirmations</span><span class="tx-val green">${cert.confirmations} ✓</span></div>
+        <div class="tx-row"><span class="tx-key">Status</span><span class="tx-val green">✅ SUCCESS</span></div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <a href="verify.html?hash=${cert.certHash}" class="btn btn-primary">🔍 Verify Certificate Hash</a>
+        <a href="certificate.html?id=${cert.id}" class="btn btn-gold">📜 View Certificate</a>
+        <a href="fraud.html?id=${cert.id}" class="btn btn-outline">🤖 Run AI Fraud Check</a>
+      </div>`;
+  }
+
+  function renderMerkle(idx) {
+    const cert = certs[idx];
+    const h = (s) => s.substring(0, 10) + '...';
+    document.getElementById('merkleTree').innerHTML = `
+      <div class="merkle-level"><div class="merkle-label">Merkle Root (stored in block header)</div>
+        <div><span class="merkle-node root">ROOT: ${h(cert.blockHash)}</span></div></div>
+      <div style="font-size:20px;color:var(--text-muted);margin:4px 0;">↓</div>
+      <div class="merkle-level"><div class="merkle-label">Intermediate Nodes</div>
+        <span class="merkle-node">H(L): ${h(cert.txHash)}</span>
+        <span class="merkle-node">H(R): ${h(cert.certHash)}</span></div>
+      <div style="font-size:20px;color:var(--text-muted);margin:4px 0;">↓</div>
+      <div class="merkle-level"><div class="merkle-label">Leaf Nodes (Transaction Hashes)</div>
+        <span class="merkle-node">TX: ${h(cert.txHash)}</span>
+        <span class="merkle-node">SIG: ${h(cert.certHash)}</span>
+        <span class="merkle-node">META: ${h(cert.blockHash.split('').reverse().join(''))}</span>
+        <span class="merkle-node">TS: ${h(cert.walletAddress.toLowerCase())}</span></div>
+      <div style="margin-top:1rem;" class="alert alert-success">✅ Merkle proof verified — Certificate hash is included in the Merkle tree at Block #${cert.blockNum}</div>`;
+  }
+
+  // Consensus nodes
+  const nodes = [
+    { id: 'NODE-IN-01', loc: '🇮🇳 Mumbai', status: 'SYNCED' },
+    { id: 'NODE-IN-02', loc: '🇮🇳 Delhi', status: 'SYNCED' },
+    { id: 'NODE-US-01', loc: '🇺🇸 New York', status: 'SYNCED' },
+    { id: 'NODE-UK-01', loc: '🇬🇧 London', status: 'SYNCED' },
+    { id: 'NODE-SG-01', loc: '🇸🇬 Singapore', status: 'SYNCED' },
+    { id: 'NODE-DE-01', loc: '🇩🇪 Berlin', status: 'SYNCED' },
+    { id: 'NODE-AU-01', loc: '🇦🇺 Sydney', status: 'SYNCED' },
+    { id: 'NODE-JP-01', loc: '🇯🇵 Tokyo', status: 'SYNCED' },
+  ];
+  const nodeGrid = document.getElementById('nodeGrid');
+  nodes.forEach(n => {
+    nodeGrid.innerHTML += `<div class="node-card"><div class="node-icon">🖥️</div><div class="node-id">${n.id}</div><div style="font-size:11px;color:var(--text-muted);">${n.loc}</div><div class="node-status">✓ ${n.status}</div></div>`;
+  });
+  const nodeTable = document.getElementById('nodeTable');
+  const latencies = [12, 18, 145, 120, 88, 95, 210, 185];
+  nodes.forEach((n, i) => {
+    nodeTable.innerHTML += `<tr><td style="font-family:'Share Tech Mono',monospace;color:var(--accent-cyan);">${n.id}</td><td>${n.loc}</td><td style="color:var(--accent-green);">4,977</td><td style="color:var(--accent-gold);">${latencies[i]}ms</td><td><span class="badge badge-verified">✓ ${n.status}</span></td></tr>`;
+  });
+
+  // Mining history
+  const miningHistory = document.getElementById('miningHistory');
+  certs.forEach(cert => {
+    miningHistory.innerHTML += `<tr>
+      <td style="color:var(--accent-cyan);font-family:'Share Tech Mono',monospace;">#${cert.blockNum}</td>
+      <td style="font-family:'Share Tech Mono',monospace;">${cert.nonce}</td>
+      <td style="font-family:'Share Tech Mono',monospace;color:var(--accent-cyan);">${cert.blockHash.substring(0,16)}</td>
+      <td>${cert.icon} ${cert.id}</td>
+      <td style="color:var(--text-muted);">${formatDate(cert.issueDate)}</td>
+    </tr>`;
+  });
+
+  // Simulated mining animation
+  let nonce = 0;
+  let mineInterval = setInterval(async () => {
+    nonce++;
+    const fakeHash = await BlockchainEngine.sha256('mining' + nonce);
+    document.getElementById('mineNonce').textContent = nonce.toLocaleString();
+    document.getElementById('mineHash').textContent = fakeHash.substring(0, 4).toUpperCase();
+    document.getElementById('currentHashDisplay').textContent = fakeHash;
+    const pct = (nonce % 100);
+    document.getElementById('mineProgress').style.width = pct + '%';
+    if (fakeHash.startsWith('0000') || nonce % 100 === 0) {
+      document.getElementById('mineHash').style.color = 'var(--accent-green)';
+    } else {
+      document.getElementById('mineHash').style.color = 'var(--accent-red)';
+    }
+  }, 100);
+
+  function switchTab(name) {
+    document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+      btn.classList.toggle('active', ['block','transaction','merkle','consensus','mining'][i] === name);
+    });
+    document.querySelectorAll('.tab-content').forEach(tc => {
+      tc.classList.toggle('active', tc.id === 'tab-' + name);
+    });
+  }
+
+  // Init
+  renderBlockDetail(0);
+  renderTransaction(0);
+  renderMerkle(0);
+
+  // URL param
+  const urlParams = new URLSearchParams(window.location.search);
+  const txParam = urlParams.get('tx');
+  if (txParam) {
+    const idx = certs.findIndex(c => c.txHash === txParam);
+    if (idx >= 0) { selectBlock(idx); switchTab('transaction'); }
+  }
+</script>
+</body>
+</html>
